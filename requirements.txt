@@ -1,0 +1,26 @@
+# Proyecto 2 — EDA RSNA 2022 Cervical Spine Fracture Detection
+# python >= 3.10
+
+# Núcleo de análisis
+pandas>=2.0
+numpy>=1.24
+scipy>=1.10
+
+# Visualización
+matplotlib>=3.7
+seaborn>=0.13
+
+# Lectura de imagen médica
+pydicom>=2.4          # cabeceras y píxeles DICOM
+nibabel>=5.1          # máscaras NIfTI (.nii)
+pylibjpeg>=2.0        # algunos DICOM del dataset usan JPEG Lossless
+pylibjpeg-libjpeg>=2.1
+
+# Utilidades
+tqdm>=4.65
+jupyter>=1.0
+
+# Entregables (solo para el miembro D)
+weasyprint>=60.0      # informe.md -> informe.pdf
+Markdown>=3.5         # conversión markdown -> html
+python-pptx>=0.6.23   # presentación
