@@ -1,0 +1,105 @@
+# =============================================================================
+# Proyecto 2 — EDA RSNA 2022 Cervical Spine Fracture Detection
+#
+# Criterio: se versiona el código, el informe, las figuras finales y los CSV
+# derivados que pesan poco y ahorran horas de cómputo. Todo lo demás —datos
+# crudos, artefactos de ejecución, basura del sistema operativo y del editor—
+# se ignora.
+# =============================================================================
+
+# --- Datos de la competencia -------------------------------------------------
+# Pesan ~350 GB y su redistribución está sujeta a las reglas de Kaggle que cada
+# integrante debe aceptar en su propia cuenta. Se descargan localmente.
+dataset/
+data/raw/
+*.dcm
+*.nii
+*.nii.gz
+
+# --- Python ------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+ENV/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# --- Secretos: nunca deben entrar al repositorio -----------------------------
+.env
+.env.*
+kaggle.json
+.kaggle/
+*.kaggle-mcp-token.json
+.kaggle-mcp-token.json
+*token*.json
+!data/*.json
+
+# --- Subproductos regenerables -----------------------------------------------
+# informe.html lo reescribe construir_pdf.py en cada ejecución.
+informe/informe.html
+informe/_informe_*.html
+
+# --- Copias de seguridad y temporales ----------------------------------------
+*.bak
+*.orig
+*.rej
+*.tmp
+*.swp
+*.swo
+*~
+
+# --- Archivos de bloqueo de Microsoft Office ---------------------------------
+# Se crean al abrir el .pptx o el .docx y desaparecen al cerrarlo.
+~$*
+*.pptx#
+*.~vsd*
+
+# --- Copias en conflicto de OneDrive -----------------------------------------
+# El repositorio vive dentro de OneDrive; la sincronización genera duplicados
+# cuando dos equipos tocan el mismo archivo.
+*conflicted copy*
+*Copia en conflicto*
+*-Copia.*
+*- copia.*
+
+# --- Sistema operativo -------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# --- Editores y herramientas -------------------------------------------------
+.vscode/
+.idea/
+*.sublime-workspace
+.claude/
+.cursor/
+
+# --- Registros y comprimidos -------------------------------------------------
+*.log
+*.zip
+*.tar.gz
+*.7z
+*.rar
+
+# =============================================================================
+# Se versionan explícitamente (no borrar estas rutas):
+#   data/meta_train.csv              metadatos DICOM cacheados (348 KB)
+#   data/reporte_calidad.csv         reporte de calidad
+#   data/diccionario_variables.csv   diccionario de variables
+#   data/volumen_segmentaciones.csv  voxeles por vértebra
+#   figures/*.png                    figuras del informe a 200 dpi
+#   informe/informe.pdf              entregable
+#   presentacion/*.pptx              entregable
+# =============================================================================
