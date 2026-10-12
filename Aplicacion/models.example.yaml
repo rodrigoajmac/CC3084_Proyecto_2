@@ -1,0 +1,37 @@
+models:
+  - id: ejemplo_keras
+    name: "Clasificador Keras (ejemplo de configuración)"
+    path: models/clasificador.keras
+    framework: tensorflow
+    format: keras
+    input_size: [224, 224]       # [alto, ancho] usados durante el entrenamiento
+    color_mode: grayscale        # grayscale o rgb
+    channels: 1
+    normalization:
+      type: scale                # scale, mean_std o none
+      divisor: 255.0
+    class_order: [sin_fractura, fractura]
+    fracture_index: 1
+    threshold: 0.5
+    output_type: probability     # probability o logit
+    metrics_path: metrics/clasificador.json
+    last_conv_layer: null        # reservado para Grad-CAM cuando se valide la arquitectura
+
+  - id: ejemplo_torchscript
+    name: "Clasificador TorchScript (ejemplo de configuración)"
+    path: models/clasificador.pt
+    framework: pytorch
+    format: torchscript
+    input_size: [224, 224]
+    color_mode: rgb
+    channels: 3
+    normalization:
+      type: mean_std
+      divisor: 255.0
+      mean: [0.485, 0.456, 0.406]
+      std: [0.229, 0.224, 0.225]
+    class_order: [sin_fractura, fractura]
+    fracture_index: 1
+    threshold: 0.5
+    output_type: logit
+    metrics_path: null
