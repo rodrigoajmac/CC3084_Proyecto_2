@@ -1,0 +1,29 @@
+variable,origen,tipo,valores_unicos,nulos,descripcion
+StudyInstanceUID,train.csv,object,2019,0,Identificador único del estudio de TC; nombre de la carpeta en train_images/.
+patient_overall,train.csv,int64,2,0,1 si el estudio presenta fractura cervical de cualquier nivel.
+C1,train.csv,int64,2,0,1 si la vértebra C1 presenta fractura.
+C2,train.csv,int64,2,0,1 si la vértebra C2 presenta fractura.
+C3,train.csv,int64,2,0,1 si la vértebra C3 presenta fractura.
+C4,train.csv,int64,2,0,1 si la vértebra C4 presenta fractura.
+C5,train.csv,int64,2,0,1 si la vértebra C5 presenta fractura.
+C6,train.csv,int64,2,0,1 si la vértebra C6 presenta fractura.
+C7,train.csv,int64,2,0,1 si la vértebra C7 presenta fractura.
+StudyInstanceUID,meta_train.csv,object,2019,0,Identificador único del estudio de TC; nombre de la carpeta en train_images/.
+n_slices,meta_train.csv,int64,445,0,Número de cortes axiales (archivos DICOM) del estudio.
+slice_gap,meta_train.csv,int64,1,0,1 si la numeración de cortes no es contigua (hay huecos en InstanceNumber).
+slice_thickness,meta_train.csv,float64,11,0,Grosor físico del corte en mm (tag SliceThickness).
+pixel_spacing_x,meta_train.csv,float64,484,0,"Distancia física entre píxeles en el eje x, en mm."
+pixel_spacing_y,meta_train.csv,float64,485,0,"Distancia física entre píxeles en el eje y, en mm."
+rows,meta_train.csv,float64,2,0,Alto del corte en píxeles (tag Rows).
+cols,meta_train.csv,float64,3,0,Ancho del corte en píxeles (tag Columns).
+z_first,meta_train.csv,float64,1715,0,"Coordenada z del primer corte, en mm (ImagePositionPatient[2])."
+z_last,meta_train.csv,float64,1877,0,"Coordenada z del último corte, en mm."
+z_extent,meta_train.csv,float64,696,0,"Longitud anatómica cubierta por el estudio en el eje craneocaudal, en mm."
+z_dir,meta_train.csv,object,2,0,Sentido de apilamiento: ascendente o descendente.
+kvp,meta_train.csv,float64,0,2019,Voltaje del tubo de rayos X en kilovoltios pico.
+manufacturer,meta_train.csv,object,1,0,Fabricante del tomógrafo (tag Manufacturer).
+model,meta_train.csv,object,1,0,Modelo del tomógrafo (tag ManufacturerModelName).
+kernel,meta_train.csv,object,1,0,Kernel de reconstrucción usado (tag ConvolutionKernel).
+patient_sex,meta_train.csv,object,1,0,Sexo del paciente (tag PatientSex).
+patient_age,meta_train.csv,object,1,0,Edad del paciente (tag PatientAge).
+study_desc,meta_train.csv,object,1,0,Descripción textual del estudio (tag StudyDescription).
