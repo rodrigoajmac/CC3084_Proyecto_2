@@ -1,4 +1,5 @@
-# Ruta relativa a esta carpeta o ruta absoluta. El archivo no existe por defecto.
-manifest_path: ../dataset/train.csv
+# Manifiesto del conjunto de modelado: un corte por fila, con la etiqueta
+# usada para entrenar y los metadatos de adquisicion de su estudio.
+manifest_path: ../data/dataset_modelado.csv
 max_upload_mb: 20
 max_image_pixels: 40000000

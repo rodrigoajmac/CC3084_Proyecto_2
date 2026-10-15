@@ -1,2 +1,51 @@
-# Registra aquí únicamente modelos reales. Consulta models.example.yaml.
-models: []
+# Generado por notebooks/06-modelado.ipynb. No editar a mano.
+# El preprocesamiento aqui declarado es identico al del entrenamiento.
+models:
+  - id: cnn_simple
+    name: "CNN propia (desde cero)"
+    path: models/cnn_simple.keras
+    framework: tensorflow
+    format: keras
+    input_size: [224, 224]
+    color_mode: grayscale
+    channels: 1
+    normalization:
+      type: none
+    class_order: [sin_fractura, fractura]
+    fracture_index: 1
+    threshold: 0.5
+    output_type: probability
+    metrics_path: metrics/cnn_simple.json
+    last_conv_layer: null
+  - id: mobilenetv2
+    name: "MobileNetV2 (ImageNet)"
+    path: models/mobilenetv2.keras
+    framework: tensorflow
+    format: keras
+    input_size: [224, 224]
+    color_mode: rgb
+    channels: 3
+    normalization:
+      type: none
+    class_order: [sin_fractura, fractura]
+    fracture_index: 1
+    threshold: 0.5
+    output_type: probability
+    metrics_path: metrics/mobilenetv2.json
+    last_conv_layer: null
+  - id: efficientnetb0
+    name: "EfficientNetB0 (ImageNet)"
+    path: models/efficientnetb0.keras
+    framework: tensorflow
+    format: keras
+    input_size: [224, 224]
+    color_mode: rgb
+    channels: 3
+    normalization:
+      type: none
+    class_order: [sin_fractura, fractura]
+    fracture_index: 1
+    threshold: 0.5
+    output_type: probability
+    metrics_path: metrics/efficientnetb0.json
+    last_conv_layer: null

@@ -25,7 +25,25 @@ streamlit run app.py
 La interfaz puede iniciarse sin TensorFlow ni PyTorch; esos paquetes se importan solo al
 ejecutar un modelo de su framework.
 
-## Configurar modelos
+## Obtener los modelos entrenados
+
+Los `.keras` pesan entre 3 y 48 MB y **no se versionan** (`models/` está en
+`.gitignore`). Se generan con `notebooks/06-modelado.ipynb`, que se ejecuta en Kaggle
+con GPU y el dataset de la competencia adjunto, y produce en `/kaggle/working`:
+
+```
+models/cnn_simple.keras  models/mobilenetv2.keras  models/efficientnetb0.keras
+metrics/*.json           models.yaml               figures/06_*.png
+```
+
+Descarga `models/` y `metrics/` a esta carpeta y `models.yaml` a su raíz. El
+`models.yaml` del repositorio ya corresponde a esos tres modelos: **no lo edites a
+mano**, lo regenera el notebook con los valores reales del entrenamiento.
+
+Las métricas sí se versionan (son unos pocos KB), de modo que la vista de Rendimiento
+funciona incluso antes de descargar los modelos.
+
+## Configurar modelos (para añadir uno distinto)
 
 1. Copia el archivo del modelo a `models/` (esta carpeta está excluida de Git para evitar
    publicar artefactos grandes o sensibles).
