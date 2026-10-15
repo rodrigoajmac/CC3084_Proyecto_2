@@ -42,7 +42,7 @@ kaggle.json
 
 # --- Subproductos regenerables -----------------------------------------------
 # informe.html lo reescribe construir_pdf.py en cada ejecución.
-informe/informe.html
+informe/*.html
 informe/_informe_*.html
 
 # --- Copias de seguridad y temporales ----------------------------------------

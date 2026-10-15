@@ -33,8 +33,11 @@ from pathlib import Path
 import markdown
 
 AQUI = Path(__file__).resolve().parent
-ENTRADA = AQUI / "informe.md"
-SALIDA = AQUI / "informe.pdf"
+# Acepta el nombre del markdown como argumento para servir a los dos informes
+# del proyecto (EDA y resultados) sin duplicar el CSS ni el motor de render.
+_NOMBRE = Path(sys.argv[1]).stem if len(sys.argv) > 1 else "informe"
+ENTRADA = AQUI / f"{_NOMBRE}.md"
+SALIDA = AQUI / f"{_NOMBRE}.pdf"
 
 CSS = """
 @page {
@@ -229,7 +232,22 @@ def _render_navegador(html: str) -> bool:
             f"--print-to-pdf={SALIDA}",
             Path(tmp.name).as_uri(),
         ]
-        proceso = subprocess.run(comando, capture_output=True, text=True, timeout=180)
+        SALIDA.unlink(missing_ok=True)
+        proceso = subprocess.run(comando, capture_output=True, text=True, timeout=300)
+        # Edge headless devuelve antes de que el hijo termine de escribir el PDF:
+        # hay que esperar a que el archivo aparezca y deje de crecer.
+        import time
+        anterior, estable = -1, 0
+        for _ in range(120):
+            tam = SALIDA.stat().st_size if SALIDA.exists() else 0
+            if tam > 0 and tam == anterior:
+                estable += 1
+                if estable >= 3:
+                    break
+            else:
+                estable = 0
+            anterior = tam
+            time.sleep(0.5)
         shutil.rmtree(perfil, ignore_errors=True)
         if not SALIDA.exists() or SALIDA.stat().st_size == 0:
             print(f"[2/2] El navegador no generó el PDF.\n{proceso.stderr[-800:]}", file=sys.stderr)
@@ -266,14 +284,14 @@ def construir() -> Path:
     )
     html = (
         "<!DOCTYPE html><html lang='es'><head><meta charset='utf-8'>"
-        "<title>Informe — Proyecto 2 · Reto 20</title>"
+        f"<title>{_NOMBRE} — Proyecto 2 · Reto 20</title>"
         f"<style>{CSS}</style></head>"
         f"<body>{html_cuerpo}</body></html>"
     )
 
     # Se conserva siempre el HTML: sirve de respaldo si ningún motor funciona y
     # permite revisar el maquetado en el navegador sin regenerar el PDF.
-    respaldo = AQUI / "informe.html"
+    respaldo = AQUI / f"{_NOMBRE}.html"
     respaldo.write_text(html, encoding="utf-8")
 
     if not (_render_weasyprint(html) or _render_navegador(html)):
