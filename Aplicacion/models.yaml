@@ -13,7 +13,7 @@ models:
       type: none
     class_order: [sin_fractura, fractura]
     fracture_index: 1
-    threshold: 0.5
+    threshold: 0.529082
     output_type: probability
     metrics_path: metrics/cnn_simple.json
     last_conv_layer: null
@@ -29,7 +29,7 @@ models:
       type: none
     class_order: [sin_fractura, fractura]
     fracture_index: 1
-    threshold: 0.5
+    threshold: 0.297848
     output_type: probability
     metrics_path: metrics/mobilenetv2.json
     last_conv_layer: null
@@ -45,7 +45,7 @@ models:
       type: none
     class_order: [sin_fractura, fractura]
     fracture_index: 1
-    threshold: 0.5
+    threshold: 0.391596
     output_type: probability
     metrics_path: metrics/efficientnetb0.json
     last_conv_layer: null

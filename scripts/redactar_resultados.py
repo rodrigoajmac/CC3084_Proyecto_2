@@ -50,6 +50,15 @@ def seccion_resultados(filas: list[dict], inv: pd.DataFrame | None) -> str:
     mas_barato = min(filas, key=lambda f: f["segundos_entrenamiento"])
     rango = max(f["roc_auc"] for f in filas) - min(f["roc_auc"] for f in filas)
     _caro = max(f["segundos_entrenamiento"] for f in filas)
+    _obj = filas[0].get("sens_objetivo", 0.90)
+    _ops = "\n".join(
+        f"| {f['modelo']} | {f.get('sensitivity_05', float('nan')):.3f} / "
+        f"{f.get('specificity_05', float('nan')):.3f} | "
+        f"{f.get('sensitivity_youden', float('nan')):.3f} / "
+        f"{f.get('specificity_youden', float('nan')):.3f} | "
+        f"**{f['sensitivity']:.3f} / {f['specificity']:.3f}** | {f.get('umbral_cribado', 0.5):.3f} |"
+        for f in sorted(filas, key=lambda f: -f["roc_auc"])
+    )
     if mas_barato["modelo"] == mas_rapido["modelo"]:
         _coste = (f"**{mas_barato['modelo']}** es a la vez el más barato de entrenar "
                   f"({mas_barato['segundos_entrenamiento']:.0f} s frente a {_caro:.0f} s del más caro) "
@@ -205,6 +214,51 @@ modelo frente a su coste de entrenamiento. La conclusión operativa aparece ahí
 {_coste}
 Para una aplicación interactiva la latencia de inferencia pesa más que unas centésimas de
 AUC, y los tres modelos están muy por debajo del umbral de percepción humana.
+
+### 5.6 Elección del punto de operación
+
+El umbral 0.5 no es una propiedad del problema sino un valor por omisión, y en esta
+tarea tomarlo sin pensar sale caro. Un modelo puede ordenar bien —AUC alto— y aun así
+colocar casi todas sus puntuaciones a un lado de 0.5.
+
+**En cribado de patología grave la sensibilidad domina**: un falso negativo es una
+fractura no diagnosticada, con riesgo de deterioro neurológico, mientras que un falso
+positivo solo genera una revisión adicional. Ahora bien, *maximizar* el recall sin
+restricción no es una estrategia: el óptimo trivial es umbral 0, que marca todo como
+fractura y alcanza sensibilidad 1.000 con especificidad 0.000. El criterio correcto es
+**fijar una sensibilidad objetivo y quedarse con la mejor especificidad que la cumpla**.
+
+Se eligió una sensibilidad objetivo de **{_obj:.0%}**, determinada sobre el conjunto de
+**validación** y aplicada tal cual a prueba. Ese umbral es el que se publica en
+`models.yaml`.
+
+| Modelo | Umbral 0.5 (sens / esp) | Youden (sens / esp) | **Cribado (sens / esp)** | Umbral |
+|---|---:|---:|---:|---:|
+{_ops}
+
+**Interpretación.** La tabla compara **el mismo modelo** en tres puntos de operación, de
+modo que las diferencias son solo del umbral, no del entrenamiento. Tres lecturas:
+
+1. **El umbral mueve el resultado más que la arquitectura.** En EfficientNetB0 pasar de
+   0.5 al umbral de cribado sube la sensibilidad de 0.818 a 0.911 —más de nueve puntos—
+   sin reentrenar nada. La diferencia de AUC entre el mejor y el peor modelo es menor que
+   eso.
+2. **Youden no sirve aquí**, aunque sea el criterio estadístico habitual. Busca el
+   equilibrio entre sensibilidad y especificidad, y en un problema donde los dos errores
+   tienen coste muy distinto, equilibrar es la decisión equivocada. En la CNN propia
+   Youden deja la sensibilidad en 0.597: perdería cuatro de cada diez fracturas.
+3. **El precio está a la vista y hay que declararlo.** Alcanzar el {_obj:.0%} de
+   sensibilidad deja la especificidad entre 0.33 y 0.39, es decir, alrededor de dos
+   tercios de los cortes sanos se marcan como sospechosos. Para un sistema de cribado que
+   prioriza la revisión humana puede ser aceptable; para uno que pretendiera decidir solo,
+   no lo sería.
+
+Conviene además una advertencia metodológica: la sensibilidad de la CNN propia con
+umbral 0.5 resultó **0.040 en un entrenamiento previo y 0.911 en este**, con el mismo
+código y los mismos datos. La diferencia es la inicialización aleatoria. Eso no cambia su
+capacidad de ordenamiento —el AUC se mantuvo cerca de 0.70 en ambos— pero muestra que
+**una métrica dependiente del umbral sobre un modelo descalibrado es inestable**, y es
+otro argumento para fijar el punto de operación en validación en lugar de heredarlo.
 
 ### 5.6 La aplicación
 

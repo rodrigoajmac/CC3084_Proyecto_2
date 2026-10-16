@@ -1,26 +1,35 @@
 {
   "modelo": "CNN propia (desde cero)",
-  "accuracy": 0.520973588814086,
-  "precision": 0.4567901234567901,
-  "recall": 0.04030501089324619,
-  "sensitivity": 0.04030501089324619,
-  "specificity": 0.9565646594274433,
-  "f1": 0.07407407407407407,
-  "roc_auc": 0.7180143967206274,
+  "accuracy": 0.6048679440704299,
+  "precision": 0.5514950166112956,
+  "recall": 0.9041394335511983,
+  "sensitivity": 0.9041394335511983,
+  "specificity": 0.3336623889437315,
+  "f1": 0.6851011143210896,
+  "roc_auc": 0.6725864416184373,
   "confusion_matrix": [
     [
-      969,
-      44
+      338,
+      675
     ],
     [
-      881,
-      37
+      88,
+      830
     ]
   ],
-  "umbral": 0.5,
-  "ms_por_imagen": 1.5983630930556343,
+  "umbral": 0.5290822982788086,
+  "ms_por_imagen": 0.8827857190867522,
   "n_test": 1931,
-  "segundos_entrenamiento": 308.4,
+  "umbral_cribado": 0.5290822982788086,
+  "umbral_youden": 0.7307478189468384,
+  "sens_objetivo": 0.9,
+  "sensitivity_05": 0.9106753812636166,
+  "specificity_05": 0.3089832181638697,
+  "f1_05": 0.6813365933170334,
+  "sensitivity_youden": 0.5969498910675382,
+  "specificity_youden": 0.6406712734452122,
+  "f1_youden": 0.5989071038251366,
+  "segundos_entrenamiento": 284.1,
   "parametros": 241793,
   "canales": 1
 }

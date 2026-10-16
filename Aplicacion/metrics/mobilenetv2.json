@@ -1,26 +1,35 @@
 {
   "modelo": "MobileNetV2 (ImageNet)",
-  "accuracy": 0.661315380631797,
-  "precision": 0.6124361158432708,
-  "recall": 0.7832244008714597,
-  "sensitivity": 0.7832244008714597,
-  "specificity": 0.5508390918065152,
-  "f1": 0.6873804971319312,
-  "roc_auc": 0.7304905509423251,
+  "accuracy": 0.6369756602796478,
+  "precision": 0.5720930232558139,
+  "recall": 0.9379084967320261,
+  "sensitivity": 0.9379084967320261,
+  "specificity": 0.36426456071076013,
+  "f1": 0.7106892282294676,
+  "roc_auc": 0.7248052012293346,
   "confusion_matrix": [
     [
-      558,
-      455
+      369,
+      644
     ],
     [
-      199,
-      719
+      57,
+      861
     ]
   ],
-  "umbral": 0.5,
-  "ms_por_imagen": 3.5284837251620735,
+  "umbral": 0.2978478968143463,
+  "ms_por_imagen": 2.073762578583949,
   "n_test": 1931,
-  "segundos_entrenamiento": 578.9,
+  "umbral_cribado": 0.2978478968143463,
+  "umbral_youden": 0.31858083605766296,
+  "sens_objetivo": 0.9,
+  "sensitivity_05": 0.7570806100217865,
+  "specificity_05": 0.5765054294175715,
+  "f1_05": 0.6807051909892262,
+  "sensitivity_youden": 0.9291938997821351,
+  "specificity_youden": 0.3830207305034551,
+  "f1_youden": 0.7120200333889817,
+  "segundos_entrenamiento": 467.3,
   "parametros": 2259265,
   "canales": 3
 }

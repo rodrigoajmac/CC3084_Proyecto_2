@@ -496,9 +496,9 @@ el **volumen de datos anotados**, no la capacidad de los modelos.
 
 | Modelo | ROC-AUC | Sensibilidad | Especificidad | Precisión | F1 | Parámetros | Entrenamiento | Inferencia |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| EfficientNetB0 (ImageNet) | 0.7647 | 0.7636 | 0.6288 | 0.6509 | 0.7028 | 4.05 M | 515 s | 4.9 ms |
-| MobileNetV2 (ImageNet) | 0.7305 | 0.7832 | 0.5508 | 0.6124 | 0.6874 | 2.26 M | 579 s | 3.5 ms |
-| CNN propia (desde cero) | 0.7180 | 0.0403 | 0.9566 | 0.4568 | 0.0741 | 0.24 M | 308 s | 1.6 ms |
+| EfficientNetB0 (ImageNet) | 0.7740 | 0.9107 | 0.3889 | 0.5746 | 0.7046 | 4.05 M | 562 s | 2.7 ms |
+| MobileNetV2 (ImageNet) | 0.7248 | 0.9379 | 0.3643 | 0.5721 | 0.7107 | 2.26 M | 467 s | 2.1 ms |
+| CNN propia (desde cero) | 0.6726 | 0.9041 | 0.3337 | 0.5515 | 0.6851 | 0.24 M | 284 s | 0.9 ms |
 
 Evaluado sobre **1,931 cortes de prueba** de pacientes que ningún modelo vio durante
 el entrenamiento.
@@ -507,12 +507,12 @@ el entrenamiento.
 
 **Interpretación.** Las tres curvas se separan claramente de la diagonal del azar, de
 modo que los tres modelos aprenden señal real. El mejor ordenamiento lo logra
-**EfficientNetB0 (ImageNet)** con ROC-AUC 0.7647. Lo relevante no es el
+**EfficientNetB0 (ImageNet)** con ROC-AUC 0.7740. Lo relevante no es el
 ganador sino la **magnitud de la diferencia**: los tres quedan dentro de un margen
 **ordenamiento**: el ROC-AUC crece de forma monótona con la capacidad del modelo
-(0.718 → 0.730 → 0.765
+(0.673 → 0.725 → 0.774
 para 0.24 M → 2.26 M → 4.05 M
-parámetros). La CNN entrenada desde cero queda 0.047 de AUC por debajo de la mejor
+parámetros). La CNN entrenada desde cero queda 0.101 de AUC por debajo de la mejor
 red preentrenada, una brecha sustancial: **con este volumen de datos la transferencia
 desde ImageNet sí aporta**, y lo hace pese a que las imágenes naturales de ImageNet no se
 parecen en nada a una tomografía. Es la evidencia empírica del argumento de la sección
@@ -520,16 +520,16 @@ parecen en nada a una tomografía. Es la evidencia empírica del argumento de la
 
 ![Matrices de confusión](../figures/06_matrices_confusion.png)
 
-**Interpretación.** **CNN propia (desde cero)** — de 918 cortes con fractura detecta 37 y pierde 881; de 1,013 cortes sanos marca 44 como fractura.
+**Interpretación.** **CNN propia (desde cero)** — de 918 cortes con fractura detecta 830 y pierde 88; de 1,013 cortes sanos marca 675 como fractura.
 
-**MobileNetV2 (ImageNet)** — de 918 cortes con fractura detecta 719 y pierde 199; de 1,013 cortes sanos marca 455 como fractura.
+**MobileNetV2 (ImageNet)** — de 918 cortes con fractura detecta 861 y pierde 57; de 1,013 cortes sanos marca 644 como fractura.
 
-**EfficientNetB0 (ImageNet)** — de 918 cortes con fractura detecta 701 y pierde 217; de 1,013 cortes sanos marca 376 como fractura.
+**EfficientNetB0 (ImageNet)** — de 918 cortes con fractura detecta 836 y pierde 82; de 1,013 cortes sanos marca 619 como fractura.
 
 El contraste entre sensibilidad y especificidad es el resultado con más consecuencias
 prácticas. **MobileNetV2 (ImageNet)** alcanza la sensibilidad más alta
-(0.7832) pero a costa de una especificidad de
-0.5508: detecta casi todas las fracturas marcando como
+(0.9379) pero a costa de una especificidad de
+0.3643: detecta casi todas las fracturas marcando como
 sospechosos muchos cortes sanos. En cribado de patología grave esa asimetría es
 **deseable** —un falso negativo es una fractura no diagnosticada, mientras que un falso
 positivo solo genera una revisión— pero debe ser una decisión explícita y no un accidente
@@ -539,11 +539,56 @@ del umbral 0.5.
 
 **Interpretación.** El panel izquierdo desglosa las métricas y el derecho sitúa cada
 modelo frente a su coste de entrenamiento. La conclusión operativa aparece ahí:
-**CNN propia (desde cero)** se entrena en 308 s
-frente a los 579 s del más caro, y
-**CNN propia (desde cero)** responde en 1.6 ms por imagen.
+**CNN propia (desde cero)** es a la vez el más barato de entrenar (284 s frente a 562 s del más caro) y el más rápido en inferencia (0.9 ms por imagen), pero también el de menor ROC-AUC: el ahorro se paga en capacidad.
 Para una aplicación interactiva la latencia de inferencia pesa más que unas centésimas de
 AUC, y los tres modelos están muy por debajo del umbral de percepción humana.
+
+### 5.6 Elección del punto de operación
+
+El umbral 0.5 no es una propiedad del problema sino un valor por omisión, y en esta
+tarea tomarlo sin pensar sale caro. Un modelo puede ordenar bien —AUC alto— y aun así
+colocar casi todas sus puntuaciones a un lado de 0.5.
+
+**En cribado de patología grave la sensibilidad domina**: un falso negativo es una
+fractura no diagnosticada, con riesgo de deterioro neurológico, mientras que un falso
+positivo solo genera una revisión adicional. Ahora bien, *maximizar* el recall sin
+restricción no es una estrategia: el óptimo trivial es umbral 0, que marca todo como
+fractura y alcanza sensibilidad 1.000 con especificidad 0.000. El criterio correcto es
+**fijar una sensibilidad objetivo y quedarse con la mejor especificidad que la cumpla**.
+
+Se eligió una sensibilidad objetivo de **90%**, determinada sobre el conjunto de
+**validación** y aplicada tal cual a prueba. Ese umbral es el que se publica en
+`models.yaml`.
+
+| Modelo | Umbral 0.5 (sens / esp) | Youden (sens / esp) | **Cribado (sens / esp)** | Umbral |
+|---|---:|---:|---:|---:|
+| EfficientNetB0 (ImageNet) | 0.818 / 0.577 | 0.843 / 0.531 | **0.911 / 0.389** | 0.392 |
+| MobileNetV2 (ImageNet) | 0.757 / 0.577 | 0.929 / 0.383 | **0.938 / 0.364** | 0.298 |
+| CNN propia (desde cero) | 0.911 / 0.309 | 0.597 / 0.641 | **0.904 / 0.334** | 0.529 |
+
+**Interpretación.** La tabla compara **el mismo modelo** en tres puntos de operación, de
+modo que las diferencias son solo del umbral, no del entrenamiento. Tres lecturas:
+
+1. **El umbral mueve el resultado más que la arquitectura.** En EfficientNetB0 pasar de
+   0.5 al umbral de cribado sube la sensibilidad de 0.818 a 0.911 —más de nueve puntos—
+   sin reentrenar nada. La diferencia de AUC entre el mejor y el peor modelo es menor que
+   eso.
+2. **Youden no sirve aquí**, aunque sea el criterio estadístico habitual. Busca el
+   equilibrio entre sensibilidad y especificidad, y en un problema donde los dos errores
+   tienen coste muy distinto, equilibrar es la decisión equivocada. En la CNN propia
+   Youden deja la sensibilidad en 0.597: perdería cuatro de cada diez fracturas.
+3. **El precio está a la vista y hay que declararlo.** Alcanzar el 90% de
+   sensibilidad deja la especificidad entre 0.33 y 0.39, es decir, alrededor de dos
+   tercios de los cortes sanos se marcan como sospechosos. Para un sistema de cribado que
+   prioriza la revisión humana puede ser aceptable; para uno que pretendiera decidir solo,
+   no lo sería.
+
+Conviene además una advertencia metodológica: la sensibilidad de la CNN propia con
+umbral 0.5 resultó **0.040 en un entrenamiento previo y 0.911 en este**, con el mismo
+código y los mismos datos. La diferencia es la inicialización aleatoria. Eso no cambia su
+capacidad de ordenamiento —el AUC se mantuvo cerca de 0.70 en ambos— pero muestra que
+**una métrica dependiente del umbral sobre un modelo descalibrado es inestable**, y es
+otro argumento para fijar el punto de operación en validación en lugar de heredarlo.
 
 ### 5.6 La aplicación
 
@@ -628,7 +673,7 @@ cero y dos arquitecturas preentrenadas con estrategia de dos etapas, con parada 
 sobre AUC de validación.
 
 **Objetivo 4 — evaluación comparativa.** Sobre una partición agrupada por paciente, el
-mejor ROC-AUC es **0.7647** (EfficientNetB0 (ImageNet)). Las métricas se eligieron
+mejor ROC-AUC es **0.7740** (EfficientNetB0 (ImageNet)). Las métricas se eligieron
 por su lectura clínica: sensibilidad y especificidad por separado, nunca exactitud global.
 
 **Objetivo 5 — aplicación interactiva.** La aplicación cumple los tres requisitos:
@@ -638,30 +683,30 @@ vez, y mostrar u ocultar el rendimiento mediante un interruptor.
 ### 6.1 Sobre la efectividad de los algoritmos
 
 **El rendimiento es real pero moderado, y eso es el resultado honesto.** Un ROC-AUC en
-torno a 0.76 indica que los modelos capturan señal genuina, muy lejos
+torno a 0.77 indica que los modelos capturan señal genuina, muy lejos
 del azar, pero también lejos de un rendimiento clínicamente desplegable. Dado que la
 evaluación se hizo sobre pacientes no vistos y con negativos del mismo paciente, no hay
 margen para atribuir el resultado a fuga de información ni a atajos de protocolo.
 
 **La transferencia desde ImageNet sí aporta.** La CNN entrenada desde cero alcanza
-0.7180 frente a 0.7647 de la mejor red
-preentrenada, una diferencia de 0.0467 de AUC. El orden es además monótono en el
+0.6726 frente a 0.7740 de la mejor red
+preentrenada, una diferencia de 0.1014 de AUC. El orden es además monótono en el
 número de parámetros, lo que sugiere que el conjunto todavía no satura la capacidad de
 los modelos probados y que arquitecturas mayores podrían rendir algo más.
 
 **Pero el techo sigue siendo la supervisión disponible.** Un AUC de
-0.76 queda lejos de lo clínicamente desplegable, y solo el 11.64 % de
+0.77 queda lejos de lo clínicamente desplegable, y solo el 11.64 % de
 los estudios aporta anotación espacial. Invertir en anotar más cortes probablemente
 rendiría más que seguir escalando la arquitectura.
 
 **El compromiso sensibilidad-especificidad debe decidirse, no heredarse.** Con umbral 0.5,
-MobileNetV2 (ImageNet) alcanza 78.3% de sensibilidad con
-55.1% de especificidad. En cribado conviene desplazar el umbral hacia
+MobileNetV2 (ImageNet) alcanza 93.8% de sensibilidad con
+36.4% de especificidad. En cribado conviene desplazar el umbral hacia
 la sensibilidad, asumiendo más falsos positivos; el umbral es configurable por modelo en
 `models.yaml` precisamente para que sea una decisión explícita.
 
 **La latencia no es un obstáculo.** El modelo más rápido responde en
-1.6 ms por imagen, de modo que la interactividad de la
+0.9 ms por imagen, de modo que la interactividad de la
 aplicación nunca está limitada por la inferencia.
 
 ### 6.2 Limitaciones
