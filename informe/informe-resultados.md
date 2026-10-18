@@ -508,7 +508,7 @@ el entrenamiento.
 **Interpretación.** Las tres curvas se separan claramente de la diagonal del azar, de
 modo que los tres modelos aprenden señal real. El mejor ordenamiento lo logra
 **EfficientNetB0 (ImageNet)** con ROC-AUC 0.7740. Lo relevante no es el
-ganador sino la **magnitud de la diferencia**: los tres quedan dentro de un margen
+ganador sino la **magnitud de la diferencia** y su
 **ordenamiento**: el ROC-AUC crece de forma monótona con la capacidad del modelo
 (0.673 → 0.725 → 0.774
 para 0.24 M → 2.26 M → 4.05 M
@@ -590,7 +590,7 @@ capacidad de ordenamiento —el AUC se mantuvo cerca de 0.70 en ambos— pero mu
 **una métrica dependiente del umbral sobre un modelo descalibrado es inestable**, y es
 otro argumento para fijar el punto de operación en validación en lugar de heredarlo.
 
-### 5.6 La aplicación
+### 5.7 La aplicación
 
 La aplicación se construyó en **Streamlit**, elegido porque permite exponer modelos de
 Python en una interfaz web sin escribir frontend y recarga en caliente durante el
@@ -700,9 +700,11 @@ los estudios aporta anotación espacial. Invertir en anotar más cortes probable
 rendiría más que seguir escalando la arquitectura.
 
 **El compromiso sensibilidad-especificidad debe decidirse, no heredarse.** Con umbral 0.5,
-MobileNetV2 (ImageNet) alcanza 93.8% de sensibilidad con
-36.4% de especificidad. En cribado conviene desplazar el umbral hacia
-la sensibilidad, asumiendo más falsos positivos; el umbral es configurable por modelo en
+MobileNetV2 (ImageNet) alcanza 75.7% de sensibilidad con
+57.7% de especificidad; con el umbral de cribado fijado en validación
+(0.298) sube a 93.8% a costa de bajar la especificidad a
+36.4%. Ese desplazamiento hacia la sensibilidad, asumiendo más falsos
+positivos, es el que conviene en cribado; el umbral es configurable por modelo en
 `models.yaml` precisamente para que sea una decisión explícita.
 
 **La latencia no es un obstáculo.** El modelo más rápido responde en
