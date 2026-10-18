@@ -143,8 +143,8 @@ def construir() -> Path:
         "   base congelada con tasa 1e-3 → base descongelada con tasa 1e-5 (cien veces menor).",
         ("Parada temprana sobre AUC de validación", True),
         "   con restauración de los mejores pesos, en lugar de un número fijo de épocas.",
-        ("Umbral elegido en validación por índice de Youden", True),
-        "   no se hereda 0.5: un modelo puede ordenar bien y aun así estar descalibrado.",
+        ("Umbral de cribado elegido en validación", True),
+        f"   sensibilidad ≥ {filas[0]['sens_objetivo']:.0%} con la mejor especificidad posible, en lugar de 0.5 o Youden.",
     ], size=13.5, space=6)
 
     # --- 6. ROC -------------------------------------------------------------
@@ -171,8 +171,9 @@ def construir() -> Path:
     base._caja(s, Inches(0.72), Inches(5.5), Inches(12.0), Inches(1.4), [
         ("En cribado la sensibilidad domina.", True),
         "Un falso negativo es una fractura no diagnosticada, con riesgo de deterioro neurológico; un falso positivo "
-        "solo genera una revisión. Por eso el umbral se elige en validación maximizando sensibilidad + especificidad, "
-        "y queda configurable por modelo en models.yaml: es una decisión explícita, no el 0.5 por defecto.",
+        f"solo genera una revisión. Por eso el umbral se fija en validación para alcanzar al menos {filas[0]['sens_objetivo']:.0%} "
+        "de sensibilidad con la mejor especificidad posible, y queda configurable por modelo en models.yaml: "
+        "es una decisión explícita, no el 0.5 por defecto.",
     ], size=13, space=6)
 
     # --- 8. Comparación -----------------------------------------------------
