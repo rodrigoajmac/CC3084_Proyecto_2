@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from importlib.util import find_spec
 from pathlib import Path
 from typing import Any
 
@@ -35,6 +36,9 @@ def model_status(config: ModelConfig) -> Status:
         return Status(False, "SavedModel debe ser un directorio")
     if config.format == "torchscript" and config.path.suffix.lower() not in {".pt", ".pth"}:
         return Status(False, "TorchScript debe usar extensión .pt o .pth")
+    module = "tensorflow" if config.framework == "tensorflow" else "torch"
+    if find_spec(module) is None:
+        return Status(False, f"falta {module} en este entorno de Python")
     return Status(True, "listo para cargar")
 
 

@@ -5,25 +5,36 @@ binaria. La aplicación no entrena, ajusta ni convierte modelos, no guarda las i
 subidas y no debe utilizarse para diagnóstico médico.
 
 > El dataset RSNA 2022 del proyecto contiene tomografías computarizadas axiales en DICOM,
-> no radiografías laterales. La entrada 2D de esta aplicación solo debe usarse si el modelo
-> fue entrenado y validado para ese tipo exacto de imagen.
+> no radiografías laterales. La aplicación acepta un corte CT DICOM cada vez.
 
 ## Instalación y ejecución
 
-Desde la carpeta `Aplicacion`:
+Desde Git Bash, en la carpeta `Aplicacion`:
 
-```powershell
+```bash
 python -m venv .venv
-.\.venv\Scripts\Activate.ps1
+source .venv/Scripts/activate
 python -m pip install -r requirements.txt
-# Instala el framework que corresponda al modelo:
 python -m pip install tensorflow
-# o: python -m pip install torch
-streamlit run app.py
+python -m streamlit run app.py
 ```
 
-La interfaz puede iniciarse sin TensorFlow ni PyTorch; esos paquetes se importan solo al
-ejecutar un modelo de su framework.
+Los tres modelos incluidos usan TensorFlow. La interfaz puede abrirse sin él, pero el
+análisis de un corte requiere instalarlo. `requirements.txt` agrega `pydicom` y los
+decodificadores JPEG Lossless para DICOM comprimidos.
+
+## Usar la aplicación
+
+- **Explorar datos:** filtra el manifiesto por clase y origen, compara distribuciones
+  de metadatos y busca filas. Las redes usan píxeles CT; el manifiesto muestra etiquetas
+  y metadatos del conjunto de modelado.
+- **Analizar corte CT:** sube un único corte axial `.dcm`. La app lo convierte a HU,
+  aplica ventana ósea (centro 400, ancho 1800), remuestrea a 224 × 224 y prepara los
+  canales de cada modelo. Una captura PNG/JPEG no reproduce esa entrada.
+- **Rendimiento:** activa el interruptor para ver u ocultar métricas y matrices de
+  confusión; filtra modelos y consulta los tiempos de inferencia medidos.
+
+Los resultados describen un **corte**, no un diagnóstico ni un estudio completo.
 
 ## Obtener los modelos entrenados
 
@@ -95,6 +106,6 @@ La imagen subida permanece en memoria durante la sesión y no se escribe en disc
 subir archivos con identificadores visibles. La aplicación no comprueba automáticamente
 que la anatomía, proyección o protocolo sean compatibles con el modelo.
 
-La carga DICOM no está habilitada en esta interfaz 2D: hacerlo correctamente requiere
-conocer la conversión a HU, la ventana y la selección de cortes usadas por cada modelo.
-No se adopta una ventana genérica porque alteraría el preprocesamiento de inferencia.
+La aplicación usa la conversión a HU y la ventana ósea del notebook de entrenamiento.
+No selecciona automáticamente cortes de un estudio completo ni verifica que la región
+anatómica corresponda a la columna cervical.

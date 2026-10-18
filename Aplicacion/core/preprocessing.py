@@ -1,11 +1,48 @@
-"""Preprocesamiento impulsado únicamente por configuración explícita."""
+"""Preparación de cortes CT con el mismo flujo de notebooks/06-modelado.ipynb."""
 
 from __future__ import annotations
 
 import numpy as np
 from PIL import Image
+from io import BytesIO
 
 from core.config import ModelConfig
+
+
+def prepare_dicom(data: bytes, max_pixels: int) -> Image.Image:
+    """Convierte un único corte DICOM a los píxeles uint8 usados al entrenar."""
+    import pydicom
+
+    try:
+        dataset = pydicom.dcmread(BytesIO(data))
+        rows, cols = int(dataset.Rows), int(dataset.Columns)
+        if rows < 16 or cols < 16 or rows * cols > max_pixels:
+            raise ValueError("Dimensiones DICOM fuera de los límites admitidos")
+        if int(getattr(dataset, "NumberOfFrames", 1)) != 1:
+            raise ValueError("Carga un solo corte DICOM, no un estudio de varios fotogramas")
+        if getattr(dataset, "Modality", "CT") != "CT":
+            raise ValueError("Los modelos se entrenaron con tomografías CT")
+        pixels = dataset.pixel_array.astype(np.float32)
+    except (AttributeError, TypeError, pydicom.errors.InvalidDicomError) as exc:
+        raise ValueError(f"No se pudo leer el corte DICOM: {exc}") from exc
+    if pixels.ndim != 2 or pixels.shape != (rows, cols):
+        raise ValueError("Se espera un corte CT monocromático de dos dimensiones")
+    try:
+        slope = float(getattr(dataset, "RescaleSlope", 1) or 1)
+        intercept = float(getattr(dataset, "RescaleIntercept", 0) or 0)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("RescaleSlope o RescaleIntercept no es numérico") from exc
+    if not np.isfinite([slope, intercept]).all():
+        raise ValueError("Los parámetros de conversión a HU deben ser finitos")
+
+    hu = pixels * slope + intercept
+    bone_window = np.clip((hu - (400.0 - 1800.0 / 2)) / 1800.0, 0, 1)
+    # Misma interpolación y cuantización que la celda carga_corte del notebook.
+    import tensorflow as tf
+
+    resized = tf.image.resize(bone_window[..., None], (224, 224), method="bilinear").numpy()
+    image = np.clip(resized * 255, 0, 255).astype(np.uint8)[..., 0]
+    return Image.fromarray(image, mode="L")
 
 
 def preprocess(image: Image.Image, config: ModelConfig) -> np.ndarray:

@@ -2,18 +2,20 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import pandas as pd
+import numpy as np
 import plotly.express as px
 import streamlit as st
-from PIL import Image, UnidentifiedImageError
 
-from core.config import APP_DIR, load_app_config, load_model_configs
+from core.config import load_app_config, load_model_configs
 from core.data import find_manifest, load_manifest, summarize_manifest
-from core.inference import PredictionError, predict
-from core.metrics import load_all_metrics, metric_chart, confusion_figure
+from core.inference import predict
+from core.metrics import MODEL_COLORS, load_all_metrics, metric_chart, confusion_figure
 from core.model_loader import load_model, model_status
+from core.preprocessing import prepare_dicom
+
+
+CLASS_COLORS = {"Sin fractura": "#145A73", "Fractura": "#BD6430"}
 
 
 st.set_page_config(
@@ -61,11 +63,8 @@ def render_home(models) -> None:
         "La aplicación carga modelos ya entrenados desde archivos locales, aplica exactamente el "
         "preprocesamiento declarado y muestra sus salidas por separado. No entrena, ajusta ni genera modelos."
     )
-    st.info(
-        "El proyecto RSNA 2022 contiene volúmenes de tomografía computarizada axial, no radiografías "
-        "laterales. Esta interfaz de imagen única solo es válida para modelos que hayan sido entrenados "
-        "y documentados para una entrada 2D compatible."
-    )
+    st.info("Los modelos analizan un corte axial de tomografía CT en formato DICOM. "
+            "La app aplica automáticamente la misma ventana ósea y tamaño usados al entrenar.")
     st.subheader("Modelos configurados")
     if not models:
         st.warning("No hay modelos registrados. Edita `models.yaml` siguiendo `models.example.yaml`.")
@@ -99,65 +98,103 @@ def render_data(app_config) -> None:
     c1.metric("Observaciones", f"{len(frame):,}")
     c2.metric("Variables", len(frame.columns))
     c3.metric("Valores ausentes", f"{int(frame.isna().sum().sum()):,}")
-    if summary is not None:
-        label_name, counts = summary
-        fig = px.bar(
-            x=[str(value) for value in counts.index], y=counts.values,
-            labels={"x": label_name, "y": "Cantidad"}, title=f"Distribución de {label_name}",
-            color_discrete_sequence=["#23627e"],
-        )
-        st.plotly_chart(fig, use_container_width=True)
+    st.caption("Cada fila representa un corte usado para modelado; las redes usan los píxeles CT, "
+               "mientras estas columnas describen etiquetas y metadatos del estudio.")
+    filtered = frame.copy()
+    if "label" in frame:
+        labels = st.multiselect("Clase del corte", ["Sin fractura", "Fractura"],
+                                default=["Sin fractura", "Fractura"])
+        filtered = filtered.loc[filtered["label"].map({0: "Sin fractura", 1: "Fractura"}).isin(labels)]
+    if "tipo" in frame:
+        kinds = sorted(frame["tipo"].dropna().astype(str).unique())
+        chosen_kinds = st.multiselect("Origen de la muestra", kinds, default=kinds)
+        filtered = filtered.loc[filtered["tipo"].isin(chosen_kinds)]
+    if filtered.empty:
+        st.info("Los filtros no dejaron cortes para mostrar.")
+        return
+    if summary is not None and "label" in filtered:
+        counts = filtered["label"].value_counts().reindex([0, 1], fill_value=0)
+        distribution = pd.DataFrame({"Clase": ["Sin fractura", "Fractura"],
+                                     "Cortes": counts.values})
+        fig = px.bar(distribution, x="Clase", y="Cortes", color="Clase",
+                     color_discrete_map=CLASS_COLORS, title="Balance de clases en los cortes filtrados")
+        st.plotly_chart(fig, width="stretch")
+        st.caption("El balance refleja el muestreo usado para entrenar; no representa la prevalencia clínica.")
+    numeric = [column for column in ("corte", "n_slices", "slice_thickness", "pixel_spacing_x",
+                                     "z_extent", "rows", "cols") if column in filtered]
+    if numeric and "label" in filtered:
+        selected_variable = st.selectbox("Explorar relación con la clase", numeric,
+                                          format_func=lambda name: {
+                                              "corte": "Número de corte", "n_slices": "Cortes por estudio",
+                                              "slice_thickness": "Grosor de corte (mm)",
+                                              "pixel_spacing_x": "Espaciado de píxel (mm)",
+                                              "z_extent": "Extensión axial (mm)", "rows": "Filas", "cols": "Columnas",
+                                          }.get(name, name))
+        plot_data = filtered[[selected_variable, "label"]].copy()
+        plot_data[selected_variable] = pd.to_numeric(plot_data[selected_variable], errors="coerce")
+        plot_data = plot_data.dropna()
+        plot_data["Clase"] = plot_data["label"].map({0: "Sin fractura", 1: "Fractura"})
+        fig = px.histogram(plot_data, x=selected_variable, color="Clase", barmode="overlay",
+                           histnorm="probability density", opacity=0.7, nbins=35,
+                           color_discrete_map=CLASS_COLORS,
+                           title=f"Distribución de {selected_variable} por clase")
+        st.plotly_chart(fig, width="stretch")
+        st.caption("Las distribuciones se normalizan por clase para comparar formas. "
+                   "Una asociación aquí no demuestra que el metadato cause una fractura.")
     query = st.text_input("Filtrar filas (búsqueda de texto en todas las variables)")
-    shown = frame
+    shown = filtered
     if query:
-        mask = frame.astype(str).apply(lambda col: col.str.contains(query, case=False, na=False)).any(axis=1)
-        shown = frame.loc[mask]
-    st.dataframe(shown, use_container_width=True, hide_index=True)
+        mask = filtered.astype(str).apply(
+            lambda col: col.str.contains(query, case=False, na=False, regex=False)).any(axis=1)
+        shown = filtered.loc[mask]
+    st.caption(f"Mostrando {len(shown):,} de {len(frame):,} cortes")
+    st.dataframe(shown, width="stretch", hide_index=True)
     with st.expander("Variables disponibles"):
         st.dataframe(
             pd.DataFrame({"variable": frame.columns, "tipo": frame.dtypes.astype(str).values,
                           "nulos": frame.isna().sum().values}),
-            hide_index=True, use_container_width=True,
+            hide_index=True, width="stretch",
         )
 
 
 def render_analysis(models, app_config) -> None:
-    header("Analizar imagen", "Inferencia con modelos preentrenados configurados")
+    header("Analizar corte CT", "Clasificación de un corte DICOM con los modelos entrenados")
     max_mb = int(app_config.get("max_upload_mb", 20))
     max_pixels = int(app_config.get("max_image_pixels", 40_000_000))
     uploaded = st.file_uploader(
-        f"Carga una imagen PNG o JPEG (máximo {max_mb} MB)", type=["png", "jpg", "jpeg"]
+        f"Carga un corte CT DICOM .dcm (máximo {max_mb} MB)", type=["dcm", "dicom"]
     )
     if uploaded is None:
-        st.info("La imagen se procesa únicamente en memoria y no se guarda en disco.")
+        st.info("Se convertirá a HU, se aplicará ventana ósea (400/1800) y se ajustará a 224 × 224 "
+                "automáticamente. El corte se procesa en memoria.")
         return
     if uploaded.size > max_mb * 1024 * 1024:
         st.error(f"El archivo supera el límite de {max_mb} MB.")
         return
     try:
-        image = Image.open(uploaded)
-        if image.width * image.height > max_pixels:
-            st.error(f"La imagen supera el límite de {max_pixels:,} píxeles.")
-            return
-        image.load()
-    except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as exc:
-        st.error(f"El archivo no es una imagen válida: {exc}")
+        image = prepare_dicom(uploaded.getvalue(), max_pixels)
+    except Exception as exc:
+        st.error(f"No se pudo preparar el DICOM: {exc}. Si está comprimido, instala pylibjpeg y pylibjpeg-libjpeg.")
         return
-    if image.width < 16 or image.height < 16:
-        st.error("La imagen es demasiado pequeña para una inferencia válida (mínimo 16 × 16 píxeles).")
-        return
-    st.image(image, caption=f"Vista previa — {image.width} × {image.height} px", width=520)
-    confirmed = st.checkbox(
-        "Confirmo que la imagen corresponde al tipo de estudio y proyección esperados por el modelo."
-    )
-    st.caption("La aplicación no verifica automáticamente la anatomía ni la proyección.")
+    st.image(image, caption="Corte en ventana ósea preparado para los modelos", width=520)
+    st.caption("Clasificación exploratoria de un corte. El sistema no verifica automáticamente la anatomía "
+               "ni resume un estudio completo.")
+    with st.expander("Cómo quedó la entrada tras el preprocesamiento"):
+        intensities = pd.DataFrame({"Intensidad": np.asarray(image).ravel()})
+        fig = px.histogram(intensities, x="Intensidad", nbins=40,
+                           color_discrete_sequence=["#145A73"],
+                           title="Distribución de intensidades en ventana ósea")
+        fig.update_xaxes(range=[0, 255])
+        st.plotly_chart(fig, width="stretch")
+        st.caption("Los modelos reciben estos valores de 0 a 255. La CNN usa un canal; "
+                   "MobileNetV2 y EfficientNetB0 reciben el mismo corte repetido en tres canales.")
     ready = [item for item in models if model_status(item).ready]
     if not ready:
         st.warning("No hay modelos listos para inferencia. Revisa la configuración y los archivos.")
         return
     options = ["Todos los modelos disponibles"] + [item.name for item in ready]
     selected = st.selectbox("Modelo", options)
-    if st.button("Ejecutar análisis", type="primary", disabled=not confirmed):
+    if st.button("Ejecutar análisis", type="primary"):
         chosen = ready if selected == options[0] else [item for item in ready if item.name == selected]
         results = []
         for config in chosen:
@@ -171,14 +208,23 @@ def render_analysis(models, app_config) -> None:
         if results:
             st.subheader("Resultados")
             frame = pd.DataFrame([item.as_row() for item in results])
-            st.dataframe(frame, use_container_width=True, hide_index=True)
+            thresholds = {item.name: item.threshold for item in chosen}
+            frame["Umbral de clasificación"] = frame["Modelo"].map(thresholds)
+            st.dataframe(frame, width="stretch", hide_index=True)
             st.caption(
                 "Las puntuaciones son salidas del modelo. Solo se denominan probabilidades cuando la "
                 "configuración declara explícitamente una salida probabilística; no son riesgo clínico."
             )
             fig = px.bar(frame, x="Modelo", y="Puntuación de fractura", color="Clase predicha",
+                         color_discrete_map={"sin_fractura": CLASS_COLORS["Sin fractura"],
+                                             "fractura": CLASS_COLORS["Fractura"]},
                          range_y=[0, 1] if all(item.bounded_score for item in results) else None)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
+            st.caption("Cada barra se interpreta frente al umbral de su propio modelo; "
+                       "una puntuación más alta entre modelos no implica necesariamente mayor certeza.")
+            if len({item.predicted_class for item in results}) > 1:
+                st.info("Los modelos discrepan en la clase de este corte. Compara sus umbrales y "
+                        "métricas de prueba antes de interpretar la diferencia.")
 
 
 def render_performance(models) -> None:
@@ -187,16 +233,50 @@ def render_performance(models) -> None:
     if not show:
         st.info("Activa el control para cargar y mostrar las métricas configuradas.")
         return
-    records, matrices, messages = load_all_metrics(models)
+    records, matrices, efficiency, messages = load_all_metrics(models)
     for message in messages:
         st.info(message)
     if records.empty:
         st.warning("No hay métricas de prueba disponibles. Agrégalas y configura `metrics_path` por modelo.")
         return
-    st.plotly_chart(metric_chart(records), use_container_width=True)
-    st.dataframe(records, use_container_width=True, hide_index=True)
+    available = records["Modelo"].unique().tolist()
+    selected = st.multiselect("Modelos para comparar", available, default=available)
+    if not selected:
+        st.info("Selecciona al menos un modelo.")
+        return
+    visible = records.loc[records["Modelo"].isin(selected)]
+    st.plotly_chart(metric_chart(visible), width="stretch")
+    st.dataframe(visible, width="stretch", hide_index=True)
+    st.caption("Sensibilidad: proporción de cortes positivos detectados. Especificidad: "
+               "proporción de cortes negativos reconocidos. Se calcularon sobre datos de prueba, "
+               "con el umbral de cribado de cada modelo.")
+    if not efficiency.empty:
+        visible_efficiency = efficiency.loc[efficiency["Modelo"].isin(selected)]
+        st.subheader("Costo de los modelos")
+        st.dataframe(visible_efficiency, width="stretch", hide_index=True)
+        if "ms por imagen" in visible_efficiency:
+            fig = px.bar(visible_efficiency, x="Modelo", y="ms por imagen", color="Modelo",
+                         color_discrete_sequence=MODEL_COLORS,
+                         title="Tiempo de inferencia medido en el conjunto de prueba")
+            st.plotly_chart(fig, width="stretch")
+            st.caption("Menos milisegundos implica respuesta más rápida en el entorno de prueba; "
+                       "la latencia de tu equipo puede ser diferente.")
+            auc = visible.loc[visible["Métrica"].eq("ROC-AUC"), ["Modelo", "Valor"]]
+            tradeoff = visible_efficiency.merge(auc, on="Modelo", how="inner")
+            if not tradeoff.empty:
+                fig = px.scatter(tradeoff, x="ms por imagen", y="Valor", color="Modelo",
+                                 text="Modelo", color_discrete_sequence=MODEL_COLORS,
+                                 labels={"Valor": "ROC-AUC en prueba"},
+                                 title="Discriminación frente a tiempo de inferencia")
+                fig.update_traces(textposition="top center", marker_size=14)
+                st.plotly_chart(fig, width="stretch")
+                st.caption("Más arriba indica mejor discriminación en prueba; más a la izquierda, "
+                           "menor tiempo por corte en el entorno de medición.")
     for model_name, matrix in matrices.items():
-        st.plotly_chart(confusion_figure(model_name, matrix), use_container_width=True)
+        if model_name in selected:
+            st.plotly_chart(confusion_figure(model_name, matrix), width="stretch")
+            st.caption("Filas: clase real; columnas: clase predicha. Los falsos negativos "
+                       "son fracturas en la fila inferior clasificadas como sin fractura.")
 
 
 def main() -> None:
