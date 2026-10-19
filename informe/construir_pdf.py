@@ -23,7 +23,10 @@ que `../figures/x.png` funciona tal como está escrito en el markdown.
 
 from __future__ import annotations
 
+import base64
+import io
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -129,6 +132,21 @@ img {
     page-break-inside: avoid;
 }
 
+/* Fórmulas: SVG generados desde LaTeX por _formulas() */
+img.formula {
+    display: block;
+    margin: 0.7em auto;
+    border: none;
+    border-radius: 0;
+}
+img.formula-linea {
+    display: inline;
+    margin: 0;
+    border: none;
+    border-radius: 0;
+    vertical-align: middle;
+}
+
 /* Citas: se usan para advertencias y notas de coordinación */
 blockquote {
     border-left: 4px solid #e76f51;
@@ -174,6 +192,35 @@ li { margin: 0.28em 0; }
 strong { color: #16323f; }
 a { color: #2a6f97; text-decoration: none; }
 """
+
+
+def _formula_svg(latex: str, tam: float) -> str:
+    """Dibuja una expresión LaTeX con mathtext de matplotlib y la devuelve como data URI SVG."""
+    import matplotlib
+    matplotlib.use("Agg")
+    from matplotlib import mathtext
+    from matplotlib.font_manager import FontProperties
+
+    # mathtext no conoce \text y su \frac es de estilo en línea: se traducen.
+    expr = re.sub(r"\\text\{([^}]*)\}",
+                  lambda m: r"\mathrm{" + m.group(1).replace(" ", r"\ ") + "}", latex)
+    expr = expr.replace(r"\frac", r"\dfrac")
+    with matplotlib.rc_context({"mathtext.fontset": "stix", "svg.fonttype": "path"}):
+        buf = io.BytesIO()
+        mathtext.math_to_image(f"${expr}$", buf, prop=FontProperties(size=tam), format="svg")
+    return "data:image/svg+xml;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
+
+
+def _formulas(texto: str) -> str:
+    """Sustituye $$…$$ (bloque) y $…$ (en línea) por imágenes: Python-Markdown no interpreta LaTeX."""
+    def bloque(m: re.Match) -> str:
+        return f'<img class="formula" alt="fórmula" src="{_formula_svg(m.group(1).strip(), 14)}">'
+
+    def linea(m: re.Match) -> str:
+        return f'<img class="formula-linea" alt="fórmula" src="{_formula_svg(m.group(1), 10.5)}">'
+
+    texto = re.sub(r"\$\$(.+?)\$\$", bloque, texto, flags=re.S)
+    return re.sub(r"(?<![\\$\w])\$([^$\n]+?)\$(?![\w$])", linea, texto)
 
 
 def _render_weasyprint(html: str) -> bool:
@@ -278,7 +325,7 @@ def construir() -> Path:
               "las figuras a figures/ antes de la entrega.\n")
 
     html_cuerpo = markdown.markdown(
-        texto,
+        _formulas(texto),
         extensions=["tables", "fenced_code", "attr_list", "sane_lists", "md_in_html"],
         output_format="html5",
     )
